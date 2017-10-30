@@ -1,0 +1,62 @@
+version: '3.1'
+
+services:
+
+  spark-master:
+    image: ${IMAGE_SPARK}
+    command: bin/spark-class org.apache.spark.deploy.master.Master
+    environment:
+      - "MASTER=spark://spark-master:7077"
+      - "SPARK_CONF_DIR=$SPARK_HOME/conf"
+      - "SPARK_PUBLIC_DNS=spark-master"
+      - "SPARK_DRIVER_MEMORY=2G"
+      - "SPARK_MASTER_IP=spark-master"
+      - "SPARK_MASTER_PORT=7077"
+    networks:
+      sparknet:
+        aliases:
+          - spark-master
+    ports:
+      - "${PORT_SPARK}:8080"
+    labels:
+      monitor: "yes"
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 20s
+        max_attempts: 6
+      resources:
+        limits:
+          memory: 2G
+
+  spark-worker:
+    image: ${IMAGE_SPARK}
+    command: bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    environment:
+      - "SPARK_CONF_DIR=$SPARK_HOME/conf"
+      - "SPARK_WORKER_CORES=2"
+      - "SPARK_WORKER_MEMORY=4G"
+      - "SPARK_WORKER_PORT=8881"
+      - "SPARK_WORKER_WEBUI_PORT=8081"
+      - "SPARK_PUBLIC_DNS=spark-worker"
+      - "SPARK_MASTER_IP=spark-master"
+      - "SPARK_MASTER_PORT=7077"
+      - "SPARK_DRIVER_HOST=spark-master"
+      - "affinity:container!=~*spark-master*"
+    networks:
+     sparknet:
+       aliases:
+         - spark-worker
+    labels:
+      monitor: "yes"
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+        delay: 20s
+        max_attempts: 6
+
+
+
+networks:
+  sparknet:
